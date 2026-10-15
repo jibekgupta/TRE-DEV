@@ -1,5 +1,19 @@
+# Course source PDFs (not assignment deliverables)
 assignement.pdf
 TRE_User_Group_List_and_User_Matrix.pdf
 User Persona Worksheet  - TRE Team.pdf
+
+# Non-required working notes and exports
 presentation/
-deploy/
+presentation_nodes.md
+docs/MVP-CHANGES.md
+docs/MVP-CHANGES.pdf
+docs/MVP-CHANGES.docx
+docs/TRE-MVP.docx
+
+# OS / editor junk
+.DS_Store
+**/.DS_Store
+*.swp
+.idea/
+.vscode/

@@ -1,6 +1,6 @@
 # A5. Domain class diagram
 
-**Caption:** This class diagram supports PP-1, PP-2, PP-3, PP-4, and PP-5. Dataset carries the dictionary, local terms, and translations. AccessRequest carries the approval record.
+**Caption:** This class diagram supports PP-1, PP-2, PP-3, PP-4, and PP-5. Eleven domain classes (within 6–12) plus three external system classes required by A4.
 
 ```mermaid
 classDiagram
@@ -12,6 +12,7 @@ classDiagram
         email: String
     }
     class Researcher {
+        createProject(name) UUID
         requestAccess() UUID
     }
     class Coordinator {
@@ -20,36 +21,40 @@ classDiagram
     class Custodian {
         review(requestId) void
     }
+    class Project {
+        projectId: UUID
+        title: String
+        ownerId: UUID
+        open(projectId) void
+        addDataset(datasetId) void
+    }
     class Dataset {
         datasetId: UUID
         title: String
         status: String
-        originNote: String
-        analysisFileName: String
-        isPublished() Boolean
+        originObjectId: String
+        analysisObjectId: String
+        upload(fileName) UUID
         check() Boolean
-        publish() void
-        prepareAnalysisFile() String
-        acceptAnalysisFile() void
+        process() void
+        deIdentify() String
+        prepareAnalysisDataset() void
+        isAnalysisReady() Boolean
+        readAnalysisObject() Table
     }
     class FieldDefinition {
         fieldName: String
         label: String
         dataType: String
+        isIdentifier: Boolean
+        acceptedTranslation: String
         accept() void
+        acceptTranslation(text) void
     }
     class LocalTerm {
         term: String
         definition: String
         define(text) void
-    }
-    class Translation {
-        sourceText: String
-        suggestedText: String
-        acceptedText: String
-        language: String
-        suggest() String
-        accept(text) void
     }
     class AccessRequest {
         requestId: UUID
@@ -57,22 +62,35 @@ classDiagram
         benefit: String
         status: String
         decidedAt: DateTime
-        open() UUID
-        submit(purpose, benefit, datasetId) UUID
+        submit(purpose, benefit, projectId, datasetId) UUID
         startReview() void
         approve() void
         deny(reason) void
-        withdraw() void
-        revoke() void
+        isApproved(researcherId, datasetId) Boolean
+    }
+    class AnalysisView {
+        viewId: UUID
+        selectedColumns: List
+        rowFilters: List
+        chartType: String
+        select(columns, rowFilters) UUID
+        createChart(chartType, xField, yField) UUID
+        preview() Table
     }
     class AuditRecord {
         recordId: UUID
         action: String
         at: DateTime
+        actorId: UUID
+        fileName: String
         record(event) UUID
     }
     class IdentityProvider {
         verify(session) UUID
+    }
+    class ObjectStorage {
+        putNew(fileBytes) String
+        get(objectId) Bytes
     }
     class NotificationService {
         notify(userId, message) void
@@ -82,40 +100,31 @@ classDiagram
     User <|-- Coordinator
     User <|-- Custodian
 
-    Coordinator "1" --> "0..*" Dataset : uploads
+    Researcher "1" --> "0..*" Project : owns
+    Project "1" --> "0..*" AccessRequest : scopes
     Researcher "1" --> "0..*" AccessRequest : submits
     Custodian "1" --> "0..*" AccessRequest : reviews
     AccessRequest "0..*" --> "1" Dataset : targets
+    Coordinator "1" --> "0..*" Dataset : uploads
     Dataset "1" *-- "1..*" FieldDefinition : dictionary
-    Dataset "1" o-- "0..*" LocalTerm : aggregation
-    Dataset "1" *-- "0..*" Translation : wording
+    Dataset "1" o-- "0..*" LocalTerm : explains
     AccessRequest "1" *-- "1..*" AuditRecord : history
+    Dataset "1" *-- "0..*" AuditRecord : fileHistory
+    Project "1" *-- "0..*" AnalysisView : views
+    AnalysisView "1" --> "1" Dataset : reads
+    Dataset "0..*" --> "1" ObjectStorage : vaultsThrough
     AccessRequest "0..*" --> "1" NotificationService : alertsThrough
-    note for Researcher "Signs in through IdentityProvider.verify(session). See UC-6."
 ```
 
 ![Class diagram](A5-classes.png)
 
-Researcher, Coordinator, and Custodian are kinds of User. That is the generalization. A person has one role in this MVP, and only Custodian has review, approve, deny, and revoke.
+**Domain classes (11):** User, Researcher, Coordinator, Custodian, Project, Dataset, FieldDefinition, LocalTerm, AccessRequest, AnalysisView, AuditRecord.  
+**External system classes (for A4):** IdentityProvider, ObjectStorage, NotificationService.
 
-FieldDefinition is a **composition** inside Dataset. A dictionary row names one column of that dataset and has no use if the dataset is deleted. AuditRecord is a composition inside AccessRequest for the same reason: the history belongs to that request. Translation is a composition because the accepted wording is part of that dataset's labels.
+**Generalization:** Researcher, Coordinator, Custodian specialize User.  
+**Composition:** FieldDefinition dictionary and AuditRecord history die with their whole.  
+**Aggregation:** LocalTerm can be reused across datasets from the same site.
 
-LocalTerm is an **aggregation**, drawn with a hollow diamond on Dataset. A hospital can reuse one term definition on a later dataset, so deleting one dataset does not delete the term. Researcher calls IdentityProvider.verify(session). That call is the note on Researcher and the first message in the UC-6 sequence.
+Soft WORM: `ObjectStorage.putNew` only; Dataset keeps separate `originObjectId` and `analysisObjectId`. Charts use `AnalysisView.createChart`.
 
-IdentityProvider and NotificationService are the external systems from A1. They are on this diagram because the sequence diagrams call them.
-
-Every message in A4 is an operation on the class that receives it:
-
-| Sequence message | Operation |
-|---|---|
-| verify(session) | IdentityProvider.verify(session) |
-| submit(purpose, benefit, datasetId) | AccessRequest.submit(purpose, benefit, datasetId) |
-| isPublished() | Dataset.isPublished() |
-| record(submitted), record(withdrawn), record(approved), record(denied) | AuditRecord.record(event) |
-| withdraw() | AccessRequest.withdraw() |
-| startReview() | AccessRequest.startReview() |
-| approve() | AccessRequest.approve() |
-| deny(reason) | AccessRequest.deny(reason) |
-| notify(researcherId, approved) and notify(researcherId, denied) | NotificationService.notify(userId, message) |
-
-UC-1 through UC-5 use the other operations: Coordinator.upload, Dataset.check, Dataset.publish, LocalTerm.define, Dataset.prepareAnalysisFile, Dataset.acceptAnalysisFile, and Translation.suggest plus Translation.accept. AccessRequest.open and AccessRequest.revoke are used by the activity diagram and the state machine.
+Every A4 message is an operation on the receiving class: `verify`, `upload`, `putNew`, `record`, `check`, `open`, `isApproved`, `select`, `readAnalysisObject`, `notify`.

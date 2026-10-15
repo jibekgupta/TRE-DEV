@@ -10,21 +10,29 @@ actor "Researcher\nDr. Ezer Kang" as Res
 actor "Translation service\n<<system>>" as Trans
 actor "Data custodian\nDaniel Okoro" as Cust
 actor "Notification service\n<<system>>" as Note
+actor "Object storage\n<<system>>" as Store
 
 rectangle "Global Health TRE" {
   usecase "UC-1 Upload dataset\nPP-2" as UC1
   usecase "UC-2 Check dataset\nPP-2" as UC2
   usecase "UC-3 Document local term\nPP-3" as UC3
-  usecase "UC-4 Prepare analysis file\nPP-1" as UC4
-  usecase "UC-5 Translate study text\nPP-5" as UC5
-  usecase "UC-6 Request dataset access\nPP-4" as UC6
+  usecase "UC-4 Process and de-identify\nPP-5" as UC4
+  usecase "UC-5 Prepare analysis dataset\nPP-1" as UC5
+  usecase "UC-6 Request project access\nPP-4" as UC6
   usecase "UC-7 Review access request\nPP-4" as UC7
+  usecase "UC-8 Explore analysis dataset\nPP-1" as UC8
+  usecase "UC-9 Create chart\nPP-1" as UC9
+  usecase "UC-10 Download analysis dataset\nPP-4" as UC10
 }
 Coord -- UC1
 Coord -- UC3
-Res -- UC4
+Store -- UC1
+Store -- UC4
 Res -- UC5
 Res -- UC6
+Res -- UC8
+Res -- UC9
+Res -- UC10
 Trans -- UC5
 Cust -- UC7
 Note -- UC7

@@ -4,60 +4,54 @@
 **Course:** Advanced Software Engineering - Model and Architect Your MVP
 **Team:** Anu, Ade, Manushi, Jibek
 
-The MVP has two sides. Dr. Amina Kamau uploads a file she already has and records what local terms mean. The TRE drafts an analysis file and can suggest translations for Dr. Ezer Kang. Daniel Okoro decides whether that researcher may receive the analysis file, and the TRE stores the decision. Later diagrams trace to a row in the table below.
+The MVP vaults a raw upload once, audits it, de-identifies into a new analysis object, and lets Dr. Ezer Kang explore that object under a Project after Daniel Okoro approves. Analysis is spreadsheet/BI-style inside the TRE (columns, rows, charts). SPSS is not required. Soft WORM: write once, read many.
 
 ## Personas in this MVP
 
 | Persona | Role in the MVP |
 |---|---|
-| Dr. Ezer Kang | Medical researcher at Howard University. He accepts an analysis-ready file and accepted translations. He receives that file only after a custodian approves his request. |
-| Dr. Amina Kamau | Physician and clinical research coordinator at a regional hospital in Kenya. She uploads study data without a separate cleaning project and records local terms. |
-| Daniel Okoro | National health-data custodian. He approves or denies access and can see who asked, why, and what was decided. |
-
-Marcus Lee and Bayowa O. are not drivers of this scope. Bayowa's hospital records and board reports are out of scope. Comparing many external datasets inside the TRE is also out of scope.
+| Dr. Ezer Kang | Medical researcher. Creates Projects, requests access, explores and charts inside the TRE, may download only when approved. |
+| Dr. Amina Kamau | Clinical research coordinator. Uploads raw study data and documents local terms. |
+| Daniel Okoro | Data custodian. Approves or denies project-scoped access and can see who asked, why, and what was decided. |
 
 ## Traceability table
 
 | ID | Persona | Pain point | MVP capability | Use case(s) | Success signal |
 |---|---|---|---|---|---|
-| PP-1 | Dr. Ezer Kang | After a file is exported, he still reformats rows by hand and writes the data dictionary himself before SPSS or R can use it. | The TRE drafts a data dictionary (name, label, type) and a rectangular analysis file from the uploaded table. He edits names and accepts the draft. | UC-4 Prepare analysis file | Every uploaded column has a dictionary row. The accepted file uses those names. He does not build the dictionary by hand on the happy path. |
-| PP-2 | Dr. Amina Kamau | Study data sits in spreadsheets, notes, and exports. She has no time to clean it, so it is never shared for research. | She uploads a spreadsheet or CSV she already has. The TRE checks missing values and basic field shape and stores the result as a dataset. | UC-1 Upload dataset; UC-2 Check dataset | She submits an uncleaned file and gets a check report in one sitting. Her active work on that file stays under 15 minutes. |
-| PP-3 | Dr. Amina Kamau | Local terms and abbreviations differ by site. A researcher in another country can misread them. | She marks a field or value as a local term and writes what it means. The definition is stored with the dataset and shown with the released analysis file. | UC-3 Document local term | A term she flags cannot be published without a definition. The released analysis file shows that definition beside the field. |
-| PP-4 | Daniel Okoro | Sensitive health data can be reused without a clear record of who is using it, why, and how the contributing population benefits. | Every access request names the dataset, the purpose, and the expected benefit. He approves or denies it. The TRE stores his identity and the time. Approval releases the accepted analysis file only. The source upload stays in storage. | UC-6 Request dataset access; UC-7 Review access request | For any dataset he can list requester, purpose, benefit, decision, and timestamp. A request with no purpose cannot be stored. |
-| PP-5 | Dr. Ezer Kang | Translating questionnaires and field labels into another language takes significant time. | The TRE suggests a translation of an instrument item or dictionary label. The suggestion is kept only after he edits or accepts it. | UC-5 Translate study text | Each accepted item stores the source text, the accepted translation, the language, and who accepted it. Unreviewed machine text is not published. |
+| PP-1 | Dr. Ezer Kang | He depends on SPSS and hand cleanup before he can explore a study file. | After approval he explores the de-identified analysis dataset inside the TRE: select columns and rows, filter, build charts (bar, line, scatter, pie). Prepare includes dictionary and accepted translations. | UC-5 Prepare analysis dataset; UC-8 Explore analysis dataset; UC-9 Create chart | He finishes one explore session and one chart on an approved project dataset without leaving the TRE. |
+| PP-2 | Dr. Amina Kamau | Study data sits unused because cleanup takes too long, and uploads are not safely vaulted. | She uploads a CSV/spreadsheet write-once to object storage. An audit row stores user, file name, and timestamp. Originals are not overwritten. | UC-1 Upload dataset; UC-2 Check dataset | She gets a check report in one sitting, and an upload audit row exists for a new object id. |
+| PP-3 | Dr. Amina Kamau | Local terms differ by site and get misunderstood. | She marks a local term and writes its definition before the dataset can be prepared. | UC-3 Document local term | A flagged term cannot be prepared without a definition. |
+| PP-4 | Daniel Okoro | Sensitive data can be reused with no record of who, why, or benefit, including downloads. | Access is requested per Project with purpose and benefit. He approves or denies. Download is gated and audited. | UC-6 Request project access; UC-7 Review access request; UC-10 Download analysis dataset | He can list project, requester, purpose, benefit, decision, and timestamp. A download requires approval and creates an audit row. |
+| PP-5 | All / Safe data | Identifiers in raw uploads make research use unsafe. | Process reads the vaulted original only. Rule-based de-identification writes a new analysis object. The origin object id is unchanged. | UC-4 Process and de-identify dataset | Explore, charts, and download use the de-identified object only. |
 
-Reserved use cases, reused with these same names in every later diagram:
+## Reserved use cases
 
 | ID | Name | Pain point | Relationship |
 |---|---|---|---|
-| UC-1 | Upload dataset | PP-2 | Base use case for intake |
-| UC-2 | Check dataset | PP-2 | Included by UC-1. The check always runs. |
-| UC-3 | Document local term | PP-3 | Extends UC-1 when the file has a local term. |
-| UC-4 | Prepare analysis file | PP-1 | Researcher accepts the drafted file. |
-| UC-5 | Translate study text | PP-5 | Researcher accepts or edits a suggestion. |
-| UC-6 | Request dataset access | PP-4 | Researcher submits purpose and benefit. |
-| UC-7 | Review access request | PP-4 | Custodian approves or denies. |
+| UC-1 | Upload dataset | PP-2 | Write-once store + upload audit. |
+| UC-2 | Check dataset | PP-2 | «include» from UC-1. |
+| UC-3 | Document local term | PP-3 | «extend» on UC-1 when a local term appears. |
+| UC-4 | Process and de-identify dataset | PP-5 | Read-only on original; new analysis object. |
+| UC-5 | Prepare analysis dataset | PP-1 | Dictionary + accepted translations. |
+| UC-6 | Request project access | PP-4 | Kang: purpose + benefit for one Project and Dataset. |
+| UC-7 | Review access request | PP-4 | Custodian approve/deny. |
+| UC-8 | Explore analysis dataset | PP-1 | Select columns/rows, filter, table view. |
+| UC-9 | Create chart | PP-1 | Bar, line, scatter, or pie from the current view. |
+| UC-10 | Download analysis dataset | PP-4 | Gated download + audit. |
 
 ## Out of scope
 
-The MVP does not include:
-
-- Finding datasets by search, comparing populations, or analyzing data in a notebook inside the TRE.
-- Cultural adaptation of instruments: redesigning answer scales, back-translation as a formal method, or testing whether a translation still measures the same concept.
-- Qualitative coding of interview transcripts.
-- A hospital operations system: wards, emergency records, paper-chart migration, and reports for a hospital board or a ministry.
-- Building KoboToolbox, SPSS, R, or a hospital record system. The researcher uses the released analysis file in the tools he already has.
-- Sharing a dataset by email or by any path that skips the access request.
-- Automatic approval. A custodian makes the decision.
-
-## Boundary this scope assumes
-
-We build dataset intake, the check report, the data dictionary, local-term definitions, translation review, access requests, and the approval record. We integrate sign-in, file storage, machine translation, and notification. We do not build those four. The context diagram (A1) is the picture of that split.
+- Full Google Sheets / Power BI product, notebooks, or arbitrary R/SPSS scripts.
+- Strong privacy methods (NLP redaction, k-anonymity, differential privacy).
+- Cultural instrument redesign beyond accepted translation.
+- Qualitative coding; hospital operations / ministry reporting.
+- Automatic approval; hard storage immutability hardware.
+- Sharing by email or any path that skips project access approval.
 
 ## Walkthrough thread
 
-The in-class walkthrough follows **PP-4**. Dr. Kang requests access to a published dataset (UC-6). Daniel Okoro reviews that request (UC-7). PP-1, PP-2, and PP-3 are what made the dataset publishable. PP-5 is in the MVP and is not the walkthrough path.
+**Upload → audit → analyze under a project:** UC-1 → UC-4 → UC-6 → UC-7 → UC-8 / UC-9.
 
 ## Architecture constraint
 
-The architecture decision record uses a **modular monolith**: one deployable application with modules for intake, dictionary, translation review, and access. The Kubernetes manifest deploys that one application.
+Modular monolith. Upload path write-only to object storage; process and analysis read-only on vaulted originals. PostgreSQL holds metadata, projects, requests, views, and audit rows.

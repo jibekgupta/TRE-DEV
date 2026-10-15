@@ -1,29 +1,36 @@
 # A7. Activity diagram
 
-**Caption:** This activity diagram supports PP-4, the pain point the walkthrough traces: a researcher asks for a published dataset, and the custodian decision is recorded before any analysis file is released.
+**Caption:** This activity supports the walkthrough upload → audit → analyze under a project (PP-2, PP-5, PP-4, PP-1).
 
 ```mermaid
 flowchart TB
-    subgraph researcherLane ["Swimlane: Researcher - Dr. Ezer Kang"]
-        startNode([Start]) --> openAct[open] --> enterAct[Enter purpose and benefit] --> submitAct[submit]
+    subgraph coordLane ["Swimlane: Coordinator - Dr. Amina Kamau"]
+        startNode([Start]) --> uploadAct[upload]
     end
 
     subgraph treLane ["Swimlane: TRE"]
-        purposeGate{purpose not empty?}
-        publishedGate{dataset published?}
-        rejectAct[Reject request]
-        rejectEnd([Stop])
-        recordSubmitted[record submitted]
-        withdrawnGate{status withdrawn?}
-        closedAct[Return closed]
-        closedEnd([Stop])
-        reasonGate{deny reason not empty?}
+        writeVault[putNew to object storage]
+        auditUpload[record uploaded]
+        checkGate{check ok?}
+        rejectStop([Stop])
+        processAct[process read-only]
+        deIdAct[deIdentify new analysis object]
+        readyAct[mark AnalysisReady]
         decisionFork{{fork}}
         recordDecision[record decision]
         decisionJoin{{join}}
-        releaseAct[Release analysis file]
-        revokeGate{revoke later?}
+        accessGate{approved and AnalysisReady?}
+        denyStop([Stop])
+        buildView[select columns and rows]
+        chartOpt{create chart?}
+        chartAct[createChart]
         doneNode([End])
+    end
+
+    subgraph researchLane ["Swimlane: Researcher - Dr. Ezer Kang"]
+        createProj[create Project]
+        requestAct[request project access]
+        exploreAct[explore analysis dataset]
     end
 
     subgraph custodianLane ["Swimlane: Data custodian - Daniel Okoro"]
@@ -31,34 +38,27 @@ flowchart TB
         decisionGate{approve or deny?}
         approveAct[approve]
         denyAct[deny]
-        revokeAct[revoke]
     end
 
     subgraph notifyLane ["Swimlane: Notification service"]
         notifyAct[notify researcher]
     end
 
-    submitAct --> purposeGate
-    purposeGate -->|no| rejectAct --> rejectEnd
-    purposeGate -->|yes| publishedGate
-    publishedGate -->|no| rejectAct
-    publishedGate -->|yes| recordSubmitted --> reviewAct
-    reviewAct --> withdrawnGate
-    withdrawnGate -->|yes| closedAct --> closedEnd
-    withdrawnGate -->|no| decisionGate
+    uploadAct --> writeVault --> auditUpload --> checkGate
+    checkGate -->|no| rejectStop
+    checkGate -->|yes| processAct --> deIdAct --> readyAct --> createProj --> requestAct --> reviewAct
+    reviewAct --> decisionGate
+    decisionGate -->|deny| denyAct --> decisionFork
     decisionGate -->|approve| approveAct --> decisionFork
-    decisionGate -->|deny| reasonGate
-    reasonGate -->|no| decisionGate
-    reasonGate -->|yes| denyAct --> decisionFork
     decisionFork --> recordDecision --> decisionJoin
     decisionFork --> notifyAct --> decisionJoin
-    decisionJoin --> releaseAct --> revokeGate
-    revokeGate -->|no| doneNode
-    revokeGate -->|yes| revokeAct --> doneNode
+    decisionJoin --> accessGate
+    accessGate -->|no| denyStop
+    accessGate -->|yes| exploreAct --> buildView --> chartOpt
+    chartOpt -->|yes| chartAct --> doneNode
+    chartOpt -->|no| doneNode
 ```
 
 ![Activity diagram](A7-activity.png)
 
-The swimlanes are the researcher persona, the TRE, the custodian persona, and the notification service from the context diagram.
-
-The decision diamonds are guarded. An empty purpose or an unpublished dataset stops the flow. A denial with an empty reason returns to the custodian. Approve and deny then fork. Recording the audit decision and notifying the researcher run in parallel, then join. The analysis file is released only after that join. Revoke is the later path from a released file back to the custodian, matching the Approved to Revoked transition.
+Swimlanes map to A1 actors/systems. Decisions use guards. After the custodian decides, recording the decision and notifying the researcher run in parallel (fork/join). Explore and optional chart run only when access is approved and the dataset is AnalysisReady.

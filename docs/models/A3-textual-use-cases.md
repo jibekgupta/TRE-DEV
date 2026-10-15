@@ -1,33 +1,33 @@
 # A3. Textual use cases
 
-The two use cases below are the walkthrough for PP-4. The use case diagram still carries PP-1, PP-2, PP-3, and PP-5.
+The two use cases that matter most to the MVP walkthrough: **UC-1 Upload dataset** (PP-2) and **UC-8 Explore analysis dataset** (PP-1).
 
-## UC-6 Request dataset access
+## UC-1 Upload dataset
 
-**Caption:** This use case supports PP-4. It creates the record of who wants a dataset and why.
-
-| Row | Detail |
-|---|---|
-| Actors | Researcher (Dr. Ezer Kang). Identity provider. TRE, through AccessRequest, Dataset, and AuditRecord. |
-| Description | The researcher asks to receive the accepted analysis file for one published dataset. He must state the purpose and the expected benefit to the people the data came from. |
-| Data | Session, datasetId, purpose, benefit. |
-| Stimulus | The researcher submits the access-request form. |
-| Response | The TRE returns a requestId. The request status is Submitted. An audit record stores the action submitted. |
-| Pre/post-conditions | Pre: the researcher has a session, and the dataset exists. Post: an AccessRequest is Submitted, with purpose and benefit stored. If an alternative flow runs, no Submitted request is kept. |
-| Comments | Supports PP-4. This is the first half of the class walkthrough. The source upload is not sent to the researcher at this step. |
-| Alternative flows | 1. Purpose is empty, or Dataset.isPublished() is false: AccessRequest returns rejected and writes no submitted audit record. 2. The researcher calls withdraw() before review: AuditRecord.record(withdrawn) runs, and the status becomes Withdrawn. |
-
-## UC-7 Review access request
-
-**Caption:** This use case supports PP-4. It stores the custodian decision and tells the researcher.
+**Caption:** This use case supports PP-2. It writes the file once and records who uploaded it.
 
 | Row | Detail |
 |---|---|
-| Actors | Data custodian (Daniel Okoro). TRE, through AccessRequest and AuditRecord. Notification service. |
-| Description | The custodian reads a submitted request and approves or denies it. Approval releases the accepted analysis file to that researcher. The source file stays in object storage. |
-| Data | requestId, decision, deny reason, custodian identity, decidedAt. |
-| Stimulus | The custodian opens a submitted request and chooses approve or deny. |
-| Response | The status becomes Approved or Denied. AuditRecord stores that decision with the custodian and the time. NotificationService.notify tells the researcher. On approval, the researcher can take the accepted analysis file. |
-| Pre/post-conditions | Pre: the custodian has a session, and the request is Submitted. Post: the decision, the actor, and the time are stored, and the researcher has been notified. |
-| Comments | Supports PP-4. This is the second half of the class walkthrough. Only a user in the Custodian role can approve, deny, or revoke. |
-| Alternative flows | 1. The status is already Withdrawn: AccessRequest returns closed, and no decision is stored. 2. The custodian denies the request but leaves the reason empty: AccessRequest returns rejected, and the status stays InReview. |
+| Actors | Clinical coordinator (Dr. Amina Kamau). Identity provider. Object storage. TRE through Dataset and AuditRecord. |
+| Description | The coordinator uploads a spreadsheet or CSV she already has. The TRE stores the bytes write-once in object storage and writes an upload audit row with user, file name, and timestamp. |
+| Data | session, fileName, file bytes, userId, timestamp. |
+| Stimulus | The coordinator submits the upload form. |
+| Response | The TRE returns datasetId and objectId. Status becomes Uploaded. AuditRecord stores action uploaded. |
+| Pre/post-conditions | Pre: coordinator has a session. Post: a new object exists in storage and was not an overwrite of an existing objectId. An upload audit row exists. |
+| Comments | Soft WORM starts here. Check dataset is included and always runs after a successful store. |
+| Alternative flows | 1. Identity verify fails: upload rejected, no object written. 2. Storage rejects overwrite (objectId already exists): upload rejected. 3. Check finds blocking shape errors: dataset becomes CheckFailed and is not processed. |
+
+## UC-8 Explore analysis dataset
+
+**Caption:** This use case supports PP-1. Spreadsheet-style explore after project approval.
+
+| Row | Detail |
+|---|---|
+| Actors | Researcher (Dr. Ezer Kang). Identity provider. Notification service. TRE through Project, AccessRequest, AnalysisView, Dataset, AuditRecord. |
+| Description | After an approved project request, the researcher opens the de-identified analysis dataset, selects columns and rows, applies filters, and sees a table view inside the TRE. |
+| Data | session, projectId, datasetId, selectedColumns, rowFilters, viewId. |
+| Stimulus | The researcher opens Explore on an approved project dataset and applies a column or row selection. |
+| Response | The TRE returns an AnalysisView. An audit row stores action explored. The researcher is notified asynchronously that the view is ready. |
+| Pre/post-conditions | Pre: researcher has a session; Project exists; AccessRequest for that project and dataset is Approved; Dataset is AnalysisReady. Post: an AnalysisView is stored under the Project; original vault object is unchanged. |
+| Comments | This replaces SPSS for ordinary exploration. UC-9 Create chart builds on the current AnalysisView. |
+| Alternative flows | 1. No approved AccessRequest: explore rejected. 2. Dataset not AnalysisReady: explore rejected. 3. Selected column still marked identifier after de-id: view builder rejects that column. |

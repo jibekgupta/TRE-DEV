@@ -1,6 +1,6 @@
 # A1. Context diagram
 
-**Caption:** This context diagram supports PP-1, PP-2, PP-3, PP-4, and PP-5 by showing the TRE as one system between the three personas and the external services it uses.
+**Caption:** This context diagram supports PP-1, PP-2, PP-3, PP-4, and PP-5 by showing the TRE between the three personas and the external systems it uses.
 
 ```mermaid
 flowchart TB
@@ -13,7 +13,7 @@ flowchart TB
     end
 
     idp["Identity provider"]
-    storage["Object storage"]
+    storage["Object storage<br/>write-once vault"]
     translate["Translation service"]
     notify["Notification service"]
 
@@ -32,4 +32,4 @@ flowchart TB
 
 ## Boundary justification
 
-The TRE builds the approval record: who asked for a dataset, why, and what Daniel Okoro decided. It also builds the dictionary, the local-term definitions, and the step where Dr. Kang accepts a translation. Sign-in and suggested translations are integrated. The identity provider owns accounts. The translation service owns the language model. The TRE only stores the text Dr. Kang has accepted.
+The TRE builds upload audit, project-scoped access, de-identification into a new analysis object, spreadsheet-style explore, charts, and gated download records. Sign-in, the vault, machine translation, and notification delivery are integrated. We chose to build the approval and audit rules; we chose to integrate the identity provider instead of storing passwords ourselves.

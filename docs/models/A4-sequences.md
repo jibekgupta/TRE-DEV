@@ -1,95 +1,102 @@
 # A4. Sequence diagrams
 
-Lifelines use the class names from A5. A solid arrow with a filled head is a synchronous call. An open arrowhead is asynchronous. A dashed arrow is a return. Guards are in brackets.
+One sequence per textual use case in A3. Lifelines use `:ClassName`. Filled arrowhead = synchronous. Open arrowhead = asynchronous. Dashed = return.
 
-## UC-6 Request dataset access
+## UC-1 Upload dataset
 
-**Caption:** This sequence supports PP-4 and matches the UC-6 steps, including the rejection and withdrawal paths.
+**Caption:** This sequence supports PP-2: verify user, write-once store, upload audit, then included check.
+
+```mermaid
+sequenceDiagram
+    actor Coordinator
+    participant IdP as :IdentityProvider
+    participant DS as :Dataset
+    participant OS as :ObjectStorage
+    participant AU as :AuditRecord
+
+    Coordinator->>IdP: verify(session)
+    activate IdP
+    IdP-->>Coordinator: coordinatorId
+    deactivate IdP
+
+    Coordinator->>DS: upload(fileName)
+    activate DS
+    DS->>OS: putNew(fileBytes)
+    activate OS
+    alt objectId already exists
+        OS-->>DS: rejected
+        DS-->>Coordinator: rejected
+    else new object
+        OS-->>DS: objectId
+        deactivate OS
+        DS->>AU: record(uploaded)
+        activate AU
+        AU-->>DS: auditId
+        deactivate AU
+        DS->>DS: check()
+        alt check fails
+            DS-->>Coordinator: checkedFailed
+        else check passes
+            DS-->>Coordinator: datasetId
+        end
+    end
+    deactivate DS
+```
+
+![Sequence for UC-1](A4-sequence-uc1.png)
+
+External system: `:ObjectStorage` and `:IdentityProvider` from the context diagram. Guards are in brackets inside `alt`.
+
+## UC-8 Explore analysis dataset
+
+**Caption:** This sequence supports PP-1 after project approval: verify, confirm access, build a column/row view, audit, async notify.
 
 ```mermaid
 sequenceDiagram
     actor Researcher
     participant IdP as :IdentityProvider
+    participant PR as :Project
     participant AR as :AccessRequest
     participant DS as :Dataset
+    participant AV as :AnalysisView
     participant AU as :AuditRecord
+    participant NS as :NotificationService
 
     Researcher->>IdP: verify(session)
     activate IdP
     IdP-->>Researcher: researcherId
     deactivate IdP
 
-    Researcher->>AR: submit(purpose, benefit, datasetId)
+    Researcher->>PR: open(projectId)
+    activate PR
+    PR->>AR: isApproved(researcherId, datasetId)
     activate AR
-    AR->>DS: isPublished()
-    activate DS
-    DS-->>AR: published
-    deactivate DS
-
-    alt purpose is empty OR published = false
-        AR-->>Researcher: rejected
-    else purpose is not empty AND published = true
-        AR->>AU: record(submitted)
+    alt not approved OR dataset not AnalysisReady
+        AR-->>PR: rejected
+        PR-->>Researcher: rejected
+    else approved AND AnalysisReady
+        AR-->>PR: approved
+        deactivate AR
+        Researcher->>AV: select(columns, rowFilters)
+        activate AV
+        AV->>DS: readAnalysisObject()
+        activate DS
+        DS-->>AV: analysisRows
+        deactivate DS
+        AV->>AU: record(explored)
         activate AU
-        AU-->>AR: auditId
+        AU-->>AV: auditId
         deactivate AU
-        AR-->>Researcher: requestId
-        opt researcher withdraws before review
-            Researcher->>AR: withdraw()
-            AR->>AU: record(withdrawn)
-            activate AU
-            AU-->>AR: auditId
-            deactivate AU
-        end
+        AV-)NS: notify(researcherId, viewReady)
+        activate NS
+        NS-->>AV: accepted
+        deactivate NS
+        AV-->>Researcher: viewId
+        deactivate AV
     end
-    deactivate AR
+    deactivate PR
 ```
 
-![Sequence for UC-6](A4-sequence-uc6.png)
+![Sequence for UC-8](A4-sequence-uc8.png)
 
-Identity provider is the external system from the context diagram. The alt fragment is the failure path from UC-6. The opt fragment is the cancellation path.
-
-## UC-7 Review access request
-
-**Caption:** This sequence supports PP-4 and matches the UC-7 steps, including a withdrawn request and a denial with no reason.
-
-```mermaid
-sequenceDiagram
-    actor Custodian
-    participant AR as :AccessRequest
-    participant AU as :AuditRecord
-    participant NS as :NotificationService
-
-    Custodian->>AR: startReview()
-    activate AR
-    alt status = withdrawn
-        AR-->>Custodian: closed
-    else decision = deny AND reason is empty
-        AR-->>Custodian: rejected
-    else decision = approve AND custodian is assigned
-        Custodian->>AR: approve()
-        AR->>AU: record(approved)
-        activate AU
-        AU-->>AR: auditId
-        deactivate AU
-        AR-)NS: notify(researcherId, approved)
-        activate NS
-        NS-->>AR: accepted
-        deactivate NS
-    else decision = deny AND reason is not empty
-        Custodian->>AR: deny(reason)
-        AR->>AU: record(denied)
-        activate AU
-        AU-->>AR: auditId
-        deactivate AU
-        AR-)NS: notify(researcherId, denied)
-        activate NS
-        NS-->>AR: accepted
-        deactivate NS
-    end
-    deactivate AR
-```
-
-![Sequence for UC-7](A4-sequence-uc7.png)
-
-Notification service is the external system from the context diagram. The notify messages use an open arrowhead because the TRE does not wait for the message to be delivered. The returns are dashed.
+`notify` uses an open arrowhead (asynchronous). Returns are dashed. Explore never writes to object storage.
