@@ -1,0 +1,16 @@
+services:
+  tre-dev:
+    build: .
+    container_name: tre-dev
+    ports:
+      - "8081:80"
+  tre-qa:
+    build: .
+    container_name: tre-qa
+    ports:
+      - "8082:80"
+  tre-prod:
+    build: .
+    container_name: tre-prod
+    ports:
+      - "8083:80"
